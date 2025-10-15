@@ -39,6 +39,11 @@
             margin-bottom: 5px;
         }
         
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+        
         .content {
             padding: 20px;
         }
@@ -180,6 +185,24 @@
         .btn-cancel:hover {
             background: #c0392b;
         }
+        
+        .btn-secondary {
+            background: #3498db;
+        }
+        
+        .btn-secondary:hover {
+            background: #2980b9;
+        }
+        
+        .camera-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .camera-actions button {
+            flex: 1;
+        }
     </style>
 </head>
 <body>
@@ -203,8 +226,8 @@
             <div id="reader">
                 <div style="text-align: center;">
                     <p>Camera ကို စတင်ရန် အောက်ပါ ခလုတ်ကို နှိပ်ပါ</p>
-                    <button class="btn" onclick="initCamera()" style="background: #3498db; width: auto; margin-top: 10px;">
-                        Camera ဖွင့်ရန်
+                    <button class="btn btn-secondary" onclick="initCamera()" style="width: auto; margin-top: 10px;">
+                        📷 Camera ဖွင့်ရန်
                     </button>
                 </div>
             </div>
@@ -212,7 +235,7 @@
             <div class="password-section">
                 <input type="password" id="password" placeholder="Password ထည့်သွင်းပါ...">
                 <button class="btn" onclick="decryptData()">
-                    အချက်အလက်များ ဖတ်ရှုရန်
+                    🔍 အချက်အလက်များ ဖတ်ရှုရန်
                 </button>
             </div>
             
@@ -241,18 +264,23 @@
     <script>
         let scannedData = '';
         let html5QrcodeScanner = null;
+        let isCameraActive = false;
         
         // Initialize Camera Function
         function initCamera() {
-            document.getElementById('reader').innerHTML = '<div style="text-align: center; padding: 20px;">Camera loading...</div>';
+            if (isCameraActive) {
+                return;
+            }
+            
+            document.getElementById('reader').innerHTML = '<div style="text-align: center; padding: 20px;">Camera စတင်နေသည်...</div>';
             
             // Check if camera access is available
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 document.getElementById('reader').innerHTML = `
                     <div style="text-align: center; padding: 20px; color: #e74c3c;">
+                        <p>⚠️ Camera access မရှိပါ</p>
                         <p>ကျေးဇူးပြု၍ HTTPS သို့မဟုတ် localhost တွင် စမ်းသပ်ပါ။</p>
-                        <p>Camera access အတွက် HTTPS လိုအပ်ပါသည်။</p>
-                        <button class="btn" onclick="resetScanner()" style="background: #3498db; width: auto; margin-top: 10px;">
+                        <button class="btn btn-secondary" onclick="resetScanner()" style="width: auto; margin-top: 10px;">
                             ပြန်စရန်
                         </button>
                     </div>
@@ -272,12 +300,45 @@
                 false
             );
             
+            isCameraActive = true;
+            
             html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+            
+            // Add stop camera button
+            setTimeout(() => {
+                const readerDiv = document.getElementById('reader');
+                const existingContent = readerDiv.innerHTML;
+                readerDiv.innerHTML = existingContent + `
+                    <div style="position: absolute; bottom: 10px; left: 0; right: 0; text-align: center;">
+                        <button class="btn btn-cancel" onclick="stopCamera()" style="width: auto; padding: 8px 16px;">
+                            Camera ပိတ်ရန်
+                        </button>
+                    </div>
+                `;
+            }, 1000);
+        }
+        
+        // Stop Camera Function
+        function stopCamera() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.clear().then(() => {
+                    isCameraActive = false;
+                    resetScanner();
+                }).catch(error => {
+                    console.error("Camera stop error:", error);
+                    isCameraActive = false;
+                    resetScanner();
+                });
+            } else {
+                isCameraActive = false;
+                resetScanner();
+            }
         }
         
         // QR Scan Success Function
         function onScanSuccess(decodedText, decodedResult) {
             scannedData = decodedText;
+            isCameraActive = false;
             
             // Stop scanner after successful scan
             if (html5QrcodeScanner) {
@@ -288,9 +349,11 @@
             document.getElementById('reader').innerHTML = `
                 <div style="text-align: center; padding: 20px;">
                     <p style="color: #27ae60; font-weight: bold;">✅ QR Code ဖတ်ရှုပြီးပါပြီ</p>
-                    <button class="btn" onclick="initCamera()" style="background: #3498db; width: auto; margin-top: 10px;">
-                        နောက်တစ်ခု Scan ဖတ်ရန်
-                    </button>
+                    <div class="camera-actions">
+                        <button class="btn btn-secondary" onclick="initCamera()">
+                            📷 နောက်တစ်ခု Scan ဖတ်ရန်
+                        </button>
+                    </div>
                 </div>
             `;
             
@@ -308,6 +371,10 @@
         function showPasswordModal() {
             document.getElementById('modalPassword').value = '';
             document.getElementById('passwordModal').style.display = 'flex';
+            // Focus on password input
+            setTimeout(() => {
+                document.getElementById('modalPassword').focus();
+            }, 100);
         }
         
         // Close Password Modal
@@ -351,7 +418,6 @@
             
             try {
                 // Simple decryption for demo
-                // In real application, use proper encryption
                 let decryptedText = '';
                 try {
                     // Try to decode as simple base64 first
@@ -371,7 +437,13 @@
                         studentId: "STU001",
                         class: "Grade 10",
                         grades: "A, B, A, C",
-                        timestamp: new Date().toLocaleString(),
+                        timestamp: new Date().toLocaleString('my-MM', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }),
                         rawData: decryptedText
                     });
                 }
@@ -384,6 +456,9 @@
                     <div style="margin-top: 10px; padding: 10px; background: #fff; border-radius: 5px;">
                         <strong>Raw Data:</strong><br>${scannedData}
                     </div>
+                    <button class="btn btn-secondary" onclick="resetScanner()" style="margin-top: 15px;">
+                        🔄 ပြန်စရန်
+                    </button>
                 `;
                 resultDiv.style.display = 'block';
             }
@@ -393,32 +468,37 @@
             document.getElementById('result').innerHTML = `
                 <div class="student-info">
                     <h3 style="color: #2c3e50; margin-bottom: 15px; text-align: center;">
-                        ကျောင်းသားအချက်အလက်များ
+                        📊 ကျောင်းသားအချက်အလက်များ
                     </h3>
                     <div class="info-item">
-                        <span class="info-label">အမည်:</span> ${studentData.name || 'N/A'}
+                        <span class="info-label">👤 အမည်:</span> ${studentData.name || 'N/A'}
                     </div>
                     <div class="info-item">
-                        <span class="info-label">ကျောင်းသားအမှတ်:</span> ${studentData.studentId || 'N/A'}
+                        <span class="info-label">🎫 ကျောင်းသားအမှတ်:</span> ${studentData.studentId || 'N/A'}
                     </div>
                     <div class="info-item">
-                        <span class="info-label">အတန်း:</span> ${studentData.class || 'N/A'}
+                        <span class="info-label">📚 အတန်း:</span> ${studentData.class || 'N/A'}
                     </div>
                     <div class="info-item">
-                        <span class="info-label">ရမှတ်များ:</span> ${studentData.grades || 'N/A'}
+                        <span class="info-label">📈 ရမှတ်များ:</span> ${studentData.grades || 'N/A'}
                     </div>
                     <div class="info-item">
-                        <span class="info-label">ဖန်တီးသည့်အချိန်:</span> ${studentData.timestamp || 'N/A'}
+                        <span class="info-label">⏰ ဖန်တီးသည့်အချိန်:</span> ${studentData.timestamp || 'N/A'}
                     </div>
                     ${studentData.rawData ? `
                     <div class="info-item">
-                        <span class="info-label">Raw Data:</span> ${studentData.rawData}
+                        <span class="info-label">📄 Raw Data:</span> ${studentData.rawData}
                     </div>
                     ` : ''}
                 </div>
-                <button class="btn" onclick="resetScanner()" style="background: #3498db; margin-top: 15px;">
-                    နောက်တစ်ခု Scan ဖတ်ရန်
-                </button>
+                <div class="camera-actions" style="margin-top: 15px;">
+                    <button class="btn btn-secondary" onclick="initCamera()">
+                        📷 နောက်တစ်ခု Scan ဖတ်ရန်
+                    </button>
+                    <button class="btn" onclick="resetScanner()">
+                        🏠 ပင်မစာမျက်နှာသို့
+                    </button>
+                </div>
             `;
             document.getElementById('result').style.display = 'block';
         }
@@ -432,6 +512,9 @@
                 <div style="background: ${bgColor}; color: ${textColor}; padding: 10px; border-radius: 5px; text-align: center;">
                     ${message}
                 </div>
+                <button class="btn btn-secondary" onclick="resetScanner()" style="margin-top: 15px;">
+                    🔄 ပြန်စရန်
+                </button>
             `;
             resultDiv.style.display = 'block';
         }
@@ -443,12 +526,26 @@
             document.getElementById('reader').innerHTML = `
                 <div style="text-align: center;">
                     <p>Camera ကို စတင်ရန် အောက်ပါ ခလုတ်ကို နှိပ်ပါ</p>
-                    <button class="btn" onclick="initCamera()" style="background: #3498db; width: auto; margin-top: 10px;">
-                        Camera ဖွင့်ရန်
+                    <button class="btn btn-secondary" onclick="initCamera()" style="width: auto; margin-top: 10px;">
+                        📷 Camera ဖွင့်ရန်
                     </button>
                 </div>
             `;
         }
+        
+        // Handle Enter key in password modal
+        document.getElementById('modalPassword').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                processWithModalPassword();
+            }
+        });
+        
+        // Handle Enter key in main password input
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                decryptData();
+            }
+        });
     </script>
 </body>
 </html>
